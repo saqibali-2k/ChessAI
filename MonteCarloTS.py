@@ -5,7 +5,7 @@ from model import CNNModel
 from typing import Union, Tuple, Optional
 from random import choices
 
-C_PUCT = 1.0
+C_PUCT = np.sqrt(2)
 LETTER_MAP = {"a": 0, "b": 1, "c": 2, "d": 3, "e": 4, "f": 5, "g": 6, "h": 7}
 NUMBER_MAP = {"1": 0, "2": 1, "3": 2, "4": 3, "5": 4, "6": 5, "7": 6, "8": 7}
 
@@ -63,13 +63,12 @@ class MonteCarloTS:
         if curr not in self.visited:
             curr.P_init_policy, value = self.feed_network(curr)
             curr.W_state_val = value
-            curr.N_num_visits += 1
+            curr.N_num_visits = 0
             self.visited.add(curr)
             return -1 * value
         else:
-            selected_child, max_u = None, -float("inf")
-            poss_actions = curr.state.get_actions()
-            sum = np.sqrt(curr.N_num_visits - 1)
+            best_action, selected_child, max_u = None, None, -float("inf")
+            sum = np.sqrt(curr.N_num_visits)
 
             for action in curr.state.get_actions():
                 if action in curr.children:
@@ -78,13 +77,19 @@ class MonteCarloTS:
                 else:
                     # initialize any non explored nodes at this point (with W = 0 and N = 0)
                     # But don't add them to visited nodes
-                    node = curr.state.transition_state(action)
-                    curr.children[action] = node
-                    u = node.get_Q() + C_PUCT * curr.state.get_policy(action) * (sum / (1 + node.N_num_visits))
+
+                    u = C_PUCT * curr.state.get_policy(action) * (sum + 1e-8)  # to encourage exploring
 
                 if u > max_u:
                     u = max_u
-                    selected_child = node
+                    best_action = action
+
+            if best_action in curr.children:
+                selected_child = curr.children[best_action]
+            else:
+                selected_child = curr.state.transition_state(best_action)
+                curr.children[best_action] = selected_child
+
             value = self._search(selected_child)
             curr.N_num_visits += 1
             curr.W_state_val += value
@@ -112,11 +117,13 @@ class MonteCarloTS:
             return array
         return move_lst, probab
 
-    def sans_to_index(self, from_square: int, to_square: int):
-        # print(from_square, str(from_square))
-        # index1 = LETTER_MAP[from_square[0]] * 8 + NUMBER_MAP[from_square[1]]
-        # index2 = LETTER_MAP[to_square[0]] * 8 + NUMBER_MAP[to_square[1]]
+    def sans_to_index(self, from_square: int, to_square: int) -> int:
         return from_square * 64 + to_square
+
+    def print_tree(self, root: TreeNode, space: int) -> None:
+        print(" " * space, root.N_num_visits)
+        for action in root.children:
+            self.print_tree(root.children[action], space + 2)
 
     def get_policy(self, node: TreeNode, action: Move) -> float:
         # get 64 * first square, + 0-63

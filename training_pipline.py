@@ -3,7 +3,7 @@ from MonteCarloTS import MonteCarloTS
 from model import CNNModel
 import numpy as np
 
-NUM_GAMES = 30
+NUM_GAMES = 10
 NUM_TRAINS = 15
 
 
@@ -35,7 +35,9 @@ def self_play(best_model, states: list, improv_policy: list, win_loss: list):
         reward_white = {"1-0": 1,
                         "1/2-1/2": 0,
                         "0-1": -1}
+        mcts.print_tree(mcts.root, 0)
         print(f'finished game {_} with {board.result()}')
+
         for node in mcts.visited:
             if node.children != {}:
                 for action in node.children:
