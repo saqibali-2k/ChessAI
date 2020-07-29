@@ -20,8 +20,8 @@ FEN_MAP = {"K": 6,
 class TreeNode:
     children: Dict[Move, TreeNode]
 
-    def __init__(self, state: State):
-        self.state = state
+    def __init__(self, board: Board):
+        self.state = State(board)
         self.W_state_val = 0
         self.N_num_visits = 0
         self.P_init_policy = None
@@ -48,7 +48,7 @@ class State:
     def get_actions(self) -> List[Move]:
         return list(self.board.legal_moves)
 
-    def get_representation(self) -> list:
+    def get_representation(self) -> np.ndarray:
         board = self.board
         state = np.zeros(64, np.uint8)
         fen = board.fen()
@@ -84,7 +84,7 @@ class State:
         else:
             turn_array = np.ones(64, np.uint8)
 
-        return [bit3, bit2, bit1, bit0, turn_array]
+        return np.array([bit3, bit2, bit1, bit0, turn_array])
 
     def serialise(self) -> str:
         to_string = self.get_representation()
