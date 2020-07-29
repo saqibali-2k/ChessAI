@@ -41,7 +41,6 @@ class TreeNode:
         return self.state.__eq__(other.state)
 
 
-
 class State:
     def __init__(self, board: Board):
         self.board = board

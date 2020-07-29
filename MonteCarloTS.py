@@ -31,10 +31,12 @@ class MonteCarloTS:
             return best
         else:
             move_lst, prob = self.get_improved_policy(node)
-            return choices(move_lst, weights=prob)[0]
+            best = choices(move_lst, weights=prob)[0]
+            print(best)
+            return best
 
     def search(self, training=True):
-        for _ in range(40):
+        for _ in range(30):
             self._search(self.curr)
         best = self.get_best_action(self.curr, training=training)
         self.curr = self.curr.children[best]
@@ -62,26 +64,26 @@ class MonteCarloTS:
 
         if curr not in self.visited:
             curr.P_init_policy, value = self.feed_network(curr)
-            curr.W_state_val = value
+            curr.W_state_val = 0
             curr.N_num_visits = 0
             self.visited.add(curr)
             return -1 * value
         else:
             best_action, selected_child, max_u = None, None, -float("inf")
-            sum = np.sqrt(curr.N_num_visits)
+            sum = curr.N_num_visits
 
             for action in curr.state.get_actions():
                 if action in curr.children:
                     node = curr.children[action]
-                    u = node.get_Q() + C_PUCT * curr.state.get_policy(action) * (sum / (1 + node.N_num_visits))
+                    u = node.get_Q() + C_PUCT * curr.state.get_policy(action) * (np.sqrt(sum) / (1 + node.N_num_visits))
                 else:
                     # initialize any non explored nodes at this point (with W = 0 and N = 0)
                     # But don't add them to visited nodes
 
-                    u = C_PUCT * curr.state.get_policy(action) * (sum + 1e-8)  # to encourage exploring
+                    u = C_PUCT * curr.state.get_policy(action) * np.sqrt(sum + 1e-8)  # to encourage exploring
 
                 if u > max_u:
-                    u = max_u
+                    max_u = u
                     best_action = action
 
             if best_action in curr.children:
@@ -99,11 +101,7 @@ class MonteCarloTS:
         Tuple[list, list], np.ndarray]:
         array = np.zeros(4096)
 
-        if curr.N_num_visits > 1:
-            sum = curr.N_num_visits - 1
-        else:
-            # We should not call on nodes that don't have explored children
-            raise ZeroDivisionError
+        sum = max(curr.N_num_visits - 1, 1)
 
         move_lst = []
         probab = []
