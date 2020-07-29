@@ -34,12 +34,13 @@ def self_play(best_model, states: list, improv_policy: list, win_loss: list):
 
         reward_white = {"1-0": 1,
                         "1/2-1/2": 0,
-                        "0-1": 1}
+                        "0-1": -1}
+        print(f'finished game {_} with {board.result()}')
         for node in mcts.visited:
             if node.children != {}:
                 for action in node.children:
                     child = node.children[action]
-                    policy = child.get_improved_policy(include_empty_spots=True)
+                    policy = mcts.get_improved_policy(node, include_empty_spots=True)
                     z = reward_white[board.result()]
                     if child.state.board.turn == chess.BLACK:
                         z *= -1

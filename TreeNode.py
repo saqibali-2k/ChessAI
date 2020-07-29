@@ -32,7 +32,14 @@ class TreeNode:
         Returns total value / num_visits.
         :return: W/N or expected win at the current state.
         """
-        return self.W_state_val / self.N_num_visits
+        return self.W_state_val / max(self.N_num_visits, 1)
+
+    def __hash__(self):
+        return self.state.__hash__()
+
+    def __eq__(self, other: TreeNode):
+        return self.state.__eq__(other.state)
+
 
 
 class State:
@@ -42,8 +49,8 @@ class State:
     def transition_state(self, action: Move) -> TreeNode:
         board = self.board.copy()
         board.push(action)
-        new_state = State(board)
-        return TreeNode(new_state)
+        # new_state = State(board)
+        return TreeNode(board)
 
     def get_actions(self) -> List[Move]:
         return list(self.board.legal_moves)

@@ -40,8 +40,9 @@ class CNNModel(ChessModel):
     def __init__(self, model_num):
         self.model_num = model_num
 
-        inputs = keras.Input(shape=(8, 8, 5))
-        x = self._conv_block(inputs, 256, 3)
+        inputs = keras.Input(shape=(5, 64))
+        x = keras.layers.Reshape((8, 8, 5))(inputs)
+        x = self._conv_block(x, 256, 3)
         x = self._conv_block(x, 256, 3)
         x = self._conv_block(x, 256, 3)
         x = self._conv_block(x, 256, 2)
@@ -83,6 +84,10 @@ class CNNModel(ChessModel):
         x = keras.layers.BatchNormalization(axis=3)(x)
         x = keras.layers.Activation("relu")(x)
         return x
+
+    def evaluate(self, states):
+        value, policy = self.model.predict(states)
+        return policy, value
 
     def get_data_from_tree(self, root):
         self.get_data_from_tree(root)

@@ -16,7 +16,6 @@ class MonteCarloTS:
 
     def __init__(self, initial_state, neural_net: CNNModel):
         self.root = TreeNode(initial_state)
-        self.root.N_num_visits += 1
         self.curr = self.root
         self.visited = set()
         self.nnet = neural_net
@@ -111,16 +110,19 @@ class MonteCarloTS:
 
         if include_empty_spots:
             return array
-        return move_lst, policy
+        return move_lst, probab
 
-    def sans_to_index(self, from_square: str, to_square: str):
-        index1 = LETTER_MAP[from_square[0]] * 8 + NUMBER_MAP[from_square[1]]
-        index2 = LETTER_MAP[to_square[0]] * 8 + NUMBER_MAP[to_square[1]]
-        return index1 * 64 + index2
+    def sans_to_index(self, from_square: int, to_square: int):
+        # print(from_square, str(from_square))
+        # index1 = LETTER_MAP[from_square[0]] * 8 + NUMBER_MAP[from_square[1]]
+        # index2 = LETTER_MAP[to_square[0]] * 8 + NUMBER_MAP[to_square[1]]
+        return from_square * 64 + to_square
 
     def get_policy(self, node: TreeNode, action: Move) -> float:
         # get 64 * first square, + 0-63
         return node.P_init_policy[self.sans_to_index(action.from_square, action.to_square)]
 
     def feed_network(self, curr: TreeNode) -> tuple:
-        pass
+        policy, value = self.nnet.evaluate(np.array([curr.state.get_representation()]))
+        return policy[0][0], value[0][0]
+
