@@ -1,31 +1,35 @@
+
 import chess
 from MonteCarloTS import MonteCarloTS
 from model import CNNModel
 import numpy as np
 
-NUM_GAMES = 10
+SELF_GAMES = 10
 NUM_TRAINS = 15
+BOT_GAMES = 10
 
 
-def training_pipline():
+def training_pipeline():
     model_num = 0
     best_model_num = 0
     best_model = CNNModel(model_num)
     for _ in range(NUM_TRAINS):
-        states, improved_policy, win_loss = [], [], []
-        states, improved_policy, win_loss = self_play(best_model, states, improved_policy, win_loss)
+        valids, states, improved_policy, win_loss = [], [], [], []
+        states, improved_policy, win_loss = self_play(best_model, states, valids, improved_policy, win_loss)
         contender = CNNModel(model_num + 1)
-        contender.train_model(states, win_loss, improved_policy)
+
+        contender.train_model(np.array(states, np.uint32), np.array(valids, np.float32), np.array(win_loss),
+                              np.array(improved_policy))
         contender_wins = bot_fight(best_model, contender)
-        if contender_wins > np.ceil(NUM_TRAINS * 0.55):
+        if contender_wins >= np.ceil(BOT_GAMES * 0.55):
             best_model = contender
-            best_model = model_num + 1
-        print(best_model_num)
+            best_model_num = model_num + 1
+        print(f'best model: {best_model_num}, new model won {contender_wins}')
         model_num += 1
 
 
-def self_play(best_model, states: list, improv_policy: list, win_loss: list):
-    for _ in range(NUM_GAMES):
+def self_play(best_model, states: list, valids: list, improv_policy: list, win_loss: list):
+    for _ in range(SELF_GAMES):
         board = chess.Board()
         mcts = MonteCarloTS(board.copy(), best_model)
         while not board.is_game_over():
@@ -35,50 +39,45 @@ def self_play(best_model, states: list, improv_policy: list, win_loss: list):
         reward_white = {"1-0": 1,
                         "1/2-1/2": 0,
                         "0-1": -1}
-        mcts.print_tree(mcts.root, 0)
+
         print(f'finished game {_} with {board.result()}')
 
         for node in mcts.visited:
-            if node.children != {}:
-                for action in node.children:
-                    child = node.children[action]
-                    policy = mcts.get_improved_policy(node, include_empty_spots=True)
-                    z = reward_white[board.result()]
-                    if child.state.board.turn == chess.BLACK:
-                        z *= -1
-                    states.append(child.state.get_representation())
-                    improv_policy.append(policy)
-                    win_loss.append(z)
+            policy = mcts.get_improved_policy(node, include_empty_spots=True)
+            z = reward_white[board.result()]
+            if node.state.board.turn == chess.BLACK:
+                z *= -1
+            states.append(node.state.get_representation())
+            valids.append(node.state.get_valid_vector())
+            improv_policy.append(policy)
+            win_loss.append(z)
 
     return states, improv_policy, win_loss
 
 
 def bot_fight(best_model, new_model) -> int:
     new_model_wins = 0
-    for _ in range(25):
+    mcts_best = MonteCarloTS(chess.Board(), best_model)
+    mcts_new = MonteCarloTS(chess.Board(), new_model)
+    for _ in range(BOT_GAMES):
         board = chess.Board()
+
         if _ % 2 == 0:
             turns = {"best": chess.WHITE,
                      "new": chess.BLACK}
-            mcts_best = MonteCarloTS(board.copy(), best_model)
-            move = mcts_best.search(training=False)
-            board.push(move)
-            mcts_new = MonteCarloTS(board.copy(), new_model)
         else:
             turns = {"best": chess.BLACK,
                      "new": chess.WHITE}
-            mcts_new = MonteCarloTS(board.copy(), best_model)
-            move = mcts_new.search(training=False)
-            board.push(move)
-            mcts_best = MonteCarloTS(board.copy(), new_model)
 
-        while not board.is_game_over():
+        while not board.is_game_over() and not board.is_seventyfive_moves() and not board.is_fivefold_repetition():
             if turns["best"] == chess.WHITE:
                 move = mcts_best.search(training=False)
                 board.push(move)
                 mcts_new.enemy_move(move)
 
                 move = mcts_new.search(training=False)
+                if move is None:
+                    break
                 board.push(move)
                 mcts_best.enemy_move(move)
             else:
@@ -87,6 +86,8 @@ def bot_fight(best_model, new_model) -> int:
                 mcts_best.enemy_move(move)
 
                 move = mcts_best.search(training=False)
+                if move is None:
+                    break
                 board.push(move)
                 mcts_new.enemy_move(move)
 
@@ -95,8 +96,11 @@ def bot_fight(best_model, new_model) -> int:
             new_model_wins += 1
         elif s == "0-1" and turns["new"] == chess.BLACK:
             new_model_wins += 1
+        mcts_new.reset_tree()
+        mcts_best.reset_tree()
 
     return new_model_wins
 
+
 if __name__ == "__main__":
-    training_pipline()
+    training_pipeline()

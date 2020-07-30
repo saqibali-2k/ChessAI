@@ -1,9 +1,11 @@
 from chess import Board, Move
-from TreeNode import TreeNode, State
+from TreeNode import TreeNode, State, sans_to_index
 import numpy as np
 from model import CNNModel
 from typing import Union, Tuple, Optional
 from random import choices
+
+NUM_SIMULATIONS = 30
 
 C_PUCT = np.sqrt(2)
 LETTER_MAP = {"a": 0, "b": 1, "c": 2, "d": 3, "e": 4, "f": 5, "g": 6, "h": 7}
@@ -23,39 +25,40 @@ class MonteCarloTS:
     def get_best_action(self, node: TreeNode, training: bool) -> Optional[Move]:
         if not training:
             max_N, best = -float("inf"), None
-            for move in node.children:
-                n = node.children[move].N_num_visits
+            for move in node.state.get_actions():
+                if move in node.children:
+                    n = node.children[move].N_num_visits
+                else:
+                    n = 0
                 if n > max_N:
                     max_N = n
-                    best = node.children[move]
+                    best = move
+            # print(best)
             return best
         else:
             move_lst, prob = self.get_improved_policy(node)
             best = choices(move_lst, weights=prob)[0]
-            print(best)
+            # print(best)
             return best
 
     def search(self, training=True):
-        for _ in range(30):
+        for _ in range(NUM_SIMULATIONS):
             self._search(self.curr)
         best = self.get_best_action(self.curr, training=training)
-        self.curr = self.curr.children[best]
+        if best is not None:
+            if best not in self.curr.children:
+                test = 1
+            self.curr = self.curr.children[best]
         return best
 
     def enemy_move(self, move: Move):
-        if move in self.curr:
+        if move in self.curr.children:
             self.curr = self.curr.children[move]
-            if self.curr.N_num_visits == 0:
-                self.curr.N_num_visits += 1
         else:
-            # we should be searching often enough so that this scenario does not occur, exploration parameter may need
-            # to be adjusted
-            raise Exception
+            # we let it happen
             node = self.curr.state.transition_state(move)
             self.curr.children[move] = node
             self.curr = node
-            if self.curr.N_num_visits == 0:
-                self.curr.N_num_visits += 1
 
     def _search(self, curr: TreeNode):
         reward = curr.state.is_end()
@@ -70,17 +73,17 @@ class MonteCarloTS:
             return -1 * value
         else:
             best_action, selected_child, max_u = None, None, -float("inf")
-            sum = curr.N_num_visits
+            sum_visits = curr.N_num_visits
 
             for action in curr.state.get_actions():
                 if action in curr.children:
                     node = curr.children[action]
-                    u = node.get_Q() + C_PUCT * curr.state.get_policy(action) * (np.sqrt(sum) / (1 + node.N_num_visits))
+                    u = node.get_Q() + C_PUCT * curr.state.get_policy(action) * (np.sqrt(sum_visits) / (1 + node.N_num_visits))
                 else:
                     # initialize any non explored nodes at this point (with W = 0 and N = 0)
                     # But don't add them to visited nodes
 
-                    u = C_PUCT * curr.state.get_policy(action) * np.sqrt(sum + 1e-8)  # to encourage exploring
+                    u = C_PUCT * curr.state.get_policy(action) * np.sqrt(sum_visits + 1e-8)  # to encourage exploring
 
                 if u > max_u:
                     max_u = u
@@ -109,14 +112,11 @@ class MonteCarloTS:
             policy = curr.children[move].N_num_visits / sum
             move_lst += [move]
             probab += [policy]
-            array[self.sans_to_index(move.from_square, move.to_square)] = policy
+            array[sans_to_index(move.from_square, move.to_square)] = policy
 
         if include_empty_spots:
             return array
         return move_lst, probab
-
-    def sans_to_index(self, from_square: int, to_square: int) -> int:
-        return from_square * 64 + to_square
 
     def print_tree(self, root: TreeNode, space: int) -> None:
         print(" " * space, root.N_num_visits)
@@ -125,9 +125,15 @@ class MonteCarloTS:
 
     def get_policy(self, node: TreeNode, action: Move) -> float:
         # get 64 * first square, + 0-63
-        return node.P_init_policy[self.sans_to_index(action.from_square, action.to_square)]
+        return node.P_init_policy[sans_to_index(action.from_square, action.to_square)]
+
+    def reset_tree(self):
+        self.curr = self.root
 
     def feed_network(self, curr: TreeNode) -> tuple:
-        policy, value = self.nnet.evaluate(np.array([curr.state.get_representation()]))
-        return policy[0][0], value[0][0]
+        valids = self.curr.state.get_valid_vector()
+        policy, value = self.nnet.evaluate(np.array([curr.state.get_representation()]), np.array([valids]))
+        # mask illegal moves and renormalize
+
+        return policy[0], value[0]
 
