@@ -37,10 +37,11 @@ class ChessModel:
 
 class CNNModel(ChessModel):
 
-    def __init__(self, model_num):
+    def __init__(self, model_num: int):
         self.model_num = model_num
 
         inputs = keras.Input(shape=(5, 64))
+        valids = keras.Input(shape=(1, 4096))
         x = keras.layers.Reshape((8, 8, 5))(inputs)
         x = self._conv_block(x, 256, 3)
         x = self._conv_block(x, 256, 3)
@@ -48,45 +49,49 @@ class CNNModel(ChessModel):
         x = self._conv_block(x, 256, 2)
 
         value = self._value_head(x)
-        policy = self._policy_head(x)
+        policy = self._policy_head(x, valids)
 
-        self.model = keras.Model(inputs=[inputs], outputs=[value, policy])
+        self.model = keras.Model(inputs=[inputs, valids], outputs=[value, policy])
 
-    def train_model(self, input, wins_loss, improved_policies):
+    def load_model(self, path):
+        self.model = keras.models.load_model(path)
+
+    def train_model(self, inputs, valids, wins_loss, improved_policies):
         self.model.compile(optimizer='adam',
-                           loss={"value": keras.losses.MeanSquaredError,
-                                 "policy": tf.nn.sigmoid_cross_entropy_with_logits},
+                           loss=['mean_squared_error', 'categorical_crossentropy'],
                            loss_weights=[1.0, 1.0]
                            )
 
-        self.model.fit(input,
-                       {"value": wins_loss,
-                        "policy": improved_policies},
+        self.model.fit([inputs, valids],
+                       [wins_loss, improved_policies],
                        epochs=10
                        )
 
         keras.models.save_model(self.model, MODEL_PATH + str(self.model_num))
 
-    def _policy_head(self, inputs):
+    def _policy_head(self, inputs, valids):
         x = self._conv_block(inputs, 2, 1)
-        x = keras.layers.Dense(4096, activation='sigmoid')(x)
+        x = keras.layers.Flatten()(x)
+        x = keras.layers.Dense(4096, kernel_initializer=keras.initializers.RandomNormal(stddev=0.01))(x)
+        x = keras.layers.Activation('sigmoid')(x)
+        x = keras.layers.multiply([x, valids])
         return x
 
     def _value_head(self, inputs):
         x = self._conv_block(inputs, 1, 1)
         x = keras.layers.Flatten()(x)
-        x = keras.layers.Dense(256, activation='relu')(x)
+        x = keras.layers.Dense(256, activation='relu', kernel_initializer=keras.initializers.RandomNormal(stddev=0.01))(x)
         x = keras.layers.Dense(1, activation='tanh')(x)
         return x
 
     def _conv_block(self, inputs, filters, kernel):
-        x = keras.layers.Conv2D(filters, (kernel, kernel))(inputs)
+        x = keras.layers.Conv2D(filters, (kernel, kernel), kernel_initializer=keras.initializers.RandomNormal(stddev=0.01))(inputs)
         x = keras.layers.BatchNormalization(axis=3)(x)
         x = keras.layers.Activation("relu")(x)
         return x
 
-    def evaluate(self, states):
-        value, policy = self.model.predict(states)
+    def evaluate(self, states, valids):
+        value, policy = self.model.predict([states, valids])
         return policy, value
 
     def get_data_from_tree(self, root):

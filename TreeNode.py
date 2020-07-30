@@ -3,6 +3,7 @@ from typing import Dict, List, Optional
 from chess import Move, Board, BLACK
 import numpy as np
 
+
 FEN_MAP = {"K": 6,
            "Q": 5,
            "B": 4,
@@ -92,6 +93,13 @@ class State:
 
         return np.array([bit3, bit2, bit1, bit0, turn_array])
 
+    def get_valid_vector(self):
+        valids = np.zeros(4096)
+        for action in self.get_actions():
+            index = sans_to_index(action.from_square, action.to_square)
+            valids[index] = 1
+        return valids
+
     def serialise(self) -> str:
         to_string = self.get_representation()
         s = ""
@@ -118,3 +126,7 @@ class State:
 
     def __eq__(self, other: State):
         return self.__hash__() == other.__hash__()
+
+
+def sans_to_index(from_square: int, to_square: int) -> int:
+    return from_square * 64 + to_square
