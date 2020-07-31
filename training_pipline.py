@@ -9,7 +9,7 @@ SELF_GAMES = 1
 NUM_TRAINS = 15
 BOT_GAMES = 10
 
-CPU_COUNT = mp.cpu_count() - 1
+CPU_COUNT = max(mp.cpu_count() - 1, 1)
 
 
 def training_pipeline():
