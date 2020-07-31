@@ -49,7 +49,7 @@ class CNNModel:
         if best:
             self.model.save_weights(MODEL_PATH + 'best', save_format='h5')
             return
-        self.model.save_weights(MODEL_PATH + str(self.model_num))
+        self.model.save_weights(MODEL_PATH + str(self.model_num), save_format='h5')
 
     def train_model(self, inputs, valids, wins_loss, improved_policies):
 

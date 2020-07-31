@@ -68,6 +68,7 @@ def async_episode(best_model_num) -> tuple:
     while not board.is_game_over() and board.fullmove_number < 150:
         move = mcts.search()
         board.push(move)
+        print(move)
     reward_white = {"1-0": 1,
                     "1/2-1/2": 0,
                     "*": -1,
