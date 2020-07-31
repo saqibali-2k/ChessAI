@@ -62,7 +62,7 @@ def async_episode(best_model_num) -> tuple:
     physical_devices = tf.config.list_physical_devices('GPU')
     if len(physical_devices) != 0:
         tf.config.experimental.set_memory_growth(physical_devices[0], True)
-
+    logging.debug("tensorflow input processed")
     valids, states, improv_policy, win_loss = [], [], [], []
     best_model = CNNModel(best_model_num)
     best_model.load_model()
