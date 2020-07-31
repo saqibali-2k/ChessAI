@@ -5,6 +5,8 @@ import numpy as np
 import multiprocessing as mp
 import logging
 
+logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filename='./debug.log',
+                    level=logging.DEBUG)
 
 SELF_GAMES = 1
 NUM_TRAINS = 15
@@ -55,6 +57,7 @@ def self_play(best_model_num):
 
 
 def async_episode(best_model_num) -> tuple:
+    logging.debug("episode process started")
     import tensorflow as tf
     physical_devices = tf.config.list_physical_devices('GPU')
     if len(physical_devices) != 0:
