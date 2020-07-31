@@ -41,7 +41,7 @@ class CNNModel(ChessModel):
         self.model_num = model_num
 
         inputs = keras.Input(shape=(5, 64))
-        valids = keras.Input(shape=(1, 4096))
+        valids = keras.Input(shape=4096)
         x = keras.layers.Reshape((8, 8, 5))(inputs)
         x = self._conv_block(x, 256, 3)
         x = self._conv_block(x, 256, 3)
@@ -53,21 +53,22 @@ class CNNModel(ChessModel):
 
         self.model = keras.Model(inputs=[inputs, valids], outputs=[value, policy])
 
-    def load_model(self, path):
-        self.model = keras.models.load_model(path)
-
-    def train_model(self, inputs, valids, wins_loss, improved_policies):
         self.model.compile(optimizer='adam',
                            loss=['mean_squared_error', 'categorical_crossentropy'],
                            loss_weights=[1.0, 1.0]
                            )
+
+    def load_model(self):
+        self.model = keras.models.load_model(MODEL_PATH + str(self.model_num))
+
+    def train_model(self, inputs, valids, wins_loss, improved_policies):
 
         self.model.fit([inputs, valids],
                        [wins_loss, improved_policies],
                        epochs=10
                        )
 
-        keras.models.save_model(self.model, MODEL_PATH + str(self.model_num))
+        self.save_model()
 
     def _policy_head(self, inputs, valids):
         x = self._conv_block(inputs, 2, 1)
@@ -94,8 +95,8 @@ class CNNModel(ChessModel):
         value, policy = self.model.predict([states, valids])
         return policy, value
 
-    def get_data_from_tree(self, root):
-        self.get_data_from_tree(root)
+    def save_model(self):
+        keras.models.save_model(self.model, MODEL_PATH + str(self.model_num))
 
     def _format(self, board: chess.Board) -> np.ndarray:
         pass
