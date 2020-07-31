@@ -1,6 +1,6 @@
 import tensorflow.keras as keras
 
-MODEL_PATH = "models/v"
+MODEL_PATH = "./models/v"
 
 FEN_MAP = {"K": 6,
            "Q": 5,
@@ -42,6 +42,15 @@ class CNNModel:
     def load_model(self):
         self.model = keras.models.load_model(MODEL_PATH + str(self.model_num))
 
+    def load_weights(self):
+        self.model.load_weights(MODEL_PATH + str(self.model_num))
+
+    def save_weights(self, best=False):
+        if best:
+            self.model.save_weights(MODEL_PATH + 'best', save_format='h5')
+            return
+        self.model.save_weights(MODEL_PATH + str(self.model_num))
+
     def train_model(self, inputs, valids, wins_loss, improved_policies):
 
         self.model.fit([inputs, valids],
@@ -49,7 +58,7 @@ class CNNModel:
                        epochs=2
                        )
 
-        self.save_model()
+        self.save_weights()
 
     def _policy_head(self, inputs, valids):
         x = self._conv_block(inputs, 2, 1)

@@ -5,7 +5,7 @@ import numpy as np
 import multiprocessing as mp
 
 
-SELF_GAMES = 30
+SELF_GAMES = 1
 NUM_TRAINS = 15
 BOT_GAMES = 10
 
@@ -16,7 +16,7 @@ def training_pipeline():
     model_num = 1
     best_model_num = 0
     best_model = CNNModel(best_model_num)
-    best_model.save_model()
+    best_model.save_weights()
     for _ in range(NUM_TRAINS):
         states, valids, improved_policy, win_loss = self_play(best_model_num)
 
@@ -28,9 +28,9 @@ def training_pipeline():
 
         if contender_wins >= np.ceil(BOT_GAMES * 0.55):
             best_model = contender
-            best_model_num = model_num + 1
+            best_model_num = contender.model_num
         print(f'best model: {best_model_num}, new model won {contender_wins}')
-        best_model.save_model(best=True)
+        best_model.save_weights(best=True)
         model_num += 1
 
 
@@ -56,11 +56,12 @@ def self_play(best_model_num):
 def async_episode(best_model_num) -> tuple:
     import tensorflow as tf
     physical_devices = tf.config.list_physical_devices('GPU')
-
+    if len(physical_devices) != 0:
+        tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
     valids, states, improv_policy, win_loss = [], [], [], []
     best_model = CNNModel(best_model_num)
-    best_model.load_model()
+    best_model.load_weights()
     board = chess.Board()
     mcts = MonteCarloTS(board.copy(), best_model)
 
@@ -69,7 +70,7 @@ def async_episode(best_model_num) -> tuple:
         board.push(move)
     reward_white = {"1-0": 1,
                     "1/2-1/2": 0,
-                    "*": 0,
+                    "*": -1,
                     "0-1": -1}
     print(f'finished game with {board.result()}')
     for node in mcts.visited:
@@ -107,9 +108,9 @@ def async_arena(iteration, best_model_num, new_model_num):
     new_model_wins = 0
     board = chess.Board()
     best_model = CNNModel(best_model_num)
-    best_model.load_model()
+    best_model.load_weights()
     new_model = CNNModel(new_model_num)
-    new_model.load_model()
+    new_model.load_weights()
     mcts_best = MonteCarloTS(chess.Board(), best_model)
     mcts_new = MonteCarloTS(chess.Board(), new_model)
     if iteration % 2 == 0:
