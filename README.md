@@ -5,7 +5,7 @@ Zero Knowledge Chess AI based off alpha-zero. Uses a neural network and Monte Ca
 Three main training phases for neural network:
 1. Gather data through self-play
 2. Train new network
-3. Evaluate whether new network is better, replace with the new one if so.
+3. Evaluate whether new network is better, replace with the old one if so.
 
 
 To train:
@@ -15,4 +15,4 @@ To train:
 3. Run `pip3 install -r requirements.txt`
 4. Run `training_pipline.py`
 
-By default, one core on your PC is left free.
+By default, one core on your PC is left free. Change this in training_pipline.py by changing constant CPU_COUNT
