@@ -65,16 +65,17 @@ def async_episode(best_model_num) -> tuple:
     logging.debug("tensorflow input processed")
     valids, states, improv_policy, win_loss = [], [], [], []
     best_model = CNNModel(best_model_num)
-    logging.debug("model initialised")
+    logging.info("model initialised")
     best_model.load_model()
     logging.debug("model loaded")
     board = chess.Board()
+    logging.debug("chess board created")
     mcts = MonteCarloTS(board.copy(), best_model)
 
     while not board.is_game_over() and board.fullmove_number < 150:
         move = mcts.search()
         board.push(move)
-        logging.info(str(move))
+        logging.debug(str(move))
     reward_white = {"1-0": 1,
                     "1/2-1/2": 0,
                     "*": -1,
