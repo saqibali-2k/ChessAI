@@ -5,7 +5,7 @@ import numpy as np
 import multiprocessing as mp
 
 
-SELF_GAMES = 20
+SELF_GAMES = 30
 NUM_TRAINS = 15
 BOT_GAMES = 10
 
@@ -30,6 +30,7 @@ def training_pipeline():
             best_model = contender
             best_model_num = model_num + 1
         print(f'best model: {best_model_num}, new model won {contender_wins}')
+        best_model.save_model(best=True)
         model_num += 1
 
 
@@ -63,7 +64,7 @@ def async_episode(best_model_num) -> tuple:
     board = chess.Board()
     mcts = MonteCarloTS(board.copy(), best_model)
 
-    while not board.is_game_over() and not board.is_seventyfive_moves():
+    while not board.is_game_over() and board.fullmove_number < 150:
         move = mcts.search()
         board.push(move)
     reward_white = {"1-0": 1,
@@ -116,7 +117,7 @@ def async_arena(iteration, best_model_num, new_model_num):
     else:
         turns = {"best": chess.BLACK,
                  "new": chess.WHITE}
-    while not board.is_game_over() and not board.is_seventyfive_moves() and not board.is_fivefold_repetition():
+    while not board.is_game_over() and board.fullmove_number < 150 and not board.is_repetition(count=4):
         if turns["best"] == chess.WHITE:
             move = mcts_best.search(training=True)
             board.push(move)

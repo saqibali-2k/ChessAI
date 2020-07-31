@@ -1,7 +1,4 @@
-import tensorflow as tf
 import tensorflow.keras as keras
-import chess
-import numpy as np
 
 MODEL_PATH = "models/v"
 
@@ -19,23 +16,7 @@ FEN_MAP = {"K": 6,
            "p": -1}
 
 
-class ChessModel:
-
-    # def __init__(self, path: str):
-    #     self.model = tf.keras.models.load_model(path)
-
-    def _format(self, board: chess.Board) -> np.ndarray:
-        raise NotImplementedError
-
-    def get_policy(self):
-        raise NotImplementedError
-
-    # def evaluate(self, board: chess.Board) -> np.ndarray:
-    #     array = self._format(board)
-    #     return np.array(self.model(array))
-
-
-class CNNModel(ChessModel):
+class CNNModel:
 
     def __init__(self, model_num: int):
         self.model_num = model_num
@@ -65,7 +46,7 @@ class CNNModel(ChessModel):
 
         self.model.fit([inputs, valids],
                        [wins_loss, improved_policies],
-                       epochs=10
+                       epochs=2
                        )
 
         self.save_model()
@@ -95,11 +76,9 @@ class CNNModel(ChessModel):
         value, policy = self.model.predict([states, valids])
         return policy, value
 
-    def save_model(self):
+    def save_model(self, best=False):
+        if best:
+            keras.models.save_model(self.model, MODEL_PATH + "BEST")
+            return
         keras.models.save_model(self.model, MODEL_PATH + str(self.model_num))
 
-    def _format(self, board: chess.Board) -> np.ndarray:
-        pass
-
-    def get_policy(self):
-        pass

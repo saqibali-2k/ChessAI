@@ -37,7 +37,11 @@ class MonteCarloTS:
             return best
         else:
             move_lst, prob = self.get_improved_policy(node)
-            best = choices(move_lst, weights=prob)[0]
+            best = choices(move_lst, weights=prob)
+            if len(best) != 0:
+                best = best[0]
+            else:
+                best = None
             # print(best)
             return best
 
