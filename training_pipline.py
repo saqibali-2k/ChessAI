@@ -71,6 +71,7 @@ def async_episode(best_model_num) -> tuple:
     board = chess.Board()
     logging.debug("chess board created")
     mcts = MonteCarloTS(board.copy(), best_model)
+    logging.debug("mcts tree created")
 
     while not board.is_game_over() and board.fullmove_number < 150:
         move = mcts.search()
