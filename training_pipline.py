@@ -56,7 +56,7 @@ def self_play(best_model_num):
 def async_episode(best_model_num) -> tuple:
     import tensorflow as tf
     physical_devices = tf.config.list_physical_devices('GPU')
-    tf.config.experimental.set_memory_growth(physical_devices[0], True)
+
 
     valids, states, improv_policy, win_loss = [], [], [], []
     best_model = CNNModel(best_model_num)
@@ -101,7 +101,8 @@ def bot_fight(best_model_num, new_model_num) -> int:
 def async_arena(iteration, best_model_num, new_model_num):
     import tensorflow as tf
     physical_devices = tf.config.list_physical_devices('GPU')
-    tf.config.experimental.set_memory_growth(physical_devices[0], True)
+    if len(physical_devices) != 0:
+        tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
     new_model_wins = 0
     board = chess.Board()
