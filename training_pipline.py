@@ -3,6 +3,7 @@ from MonteCarloTS import MonteCarloTS
 from model import CNNModel
 import numpy as np
 import multiprocessing as mp
+import logging
 
 
 SELF_GAMES = 1
@@ -29,7 +30,7 @@ def training_pipeline():
         if contender_wins >= np.ceil(BOT_GAMES * 0.55):
             best_model = contender
             best_model_num = contender.model_num
-        print(f'best model: {best_model_num}, new model won {contender_wins}')
+        logging.info(f'best model: {best_model_num}, new model won {contender_wins}')
         best_model.save_weights(best=True)
         model_num += 1
 
@@ -68,12 +69,12 @@ def async_episode(best_model_num) -> tuple:
     while not board.is_game_over() and board.fullmove_number < 150:
         move = mcts.search()
         board.push(move)
-        print(move)
+        logging.info(str(move))
     reward_white = {"1-0": 1,
                     "1/2-1/2": 0,
                     "*": -1,
                     "0-1": -1}
-    print(f'finished game with {board.result()}')
+    logging.info(f'finished game with {board.result()}')
     for node in mcts.visited:
         policy = mcts.get_improved_policy(node, include_empty_spots=True)
         z = reward_white[board.result()]
@@ -146,7 +147,8 @@ def async_arena(iteration, best_model_num, new_model_num):
         new_model_wins += 1
     elif s == "0-1" and turns["new"] == chess.BLACK:
         new_model_wins += 1
-    print(f'best model: {best_model_num}, new model won {new_model_wins}')
+    if new_model_wins == 1:
+        logging.info("new_model won")
     return new_model_wins
 
 
