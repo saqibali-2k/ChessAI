@@ -59,6 +59,8 @@ def self_play(best_model_num):
 def async_episode(best_model_num) -> tuple:
     logging.debug("episode process started")
     import tensorflow as tf
+    import chess
+    from MonteCarloTS import MonteCarloTS
     physical_devices = tf.config.list_physical_devices('GPU')
     if len(physical_devices) != 0:
         tf.config.experimental.set_memory_growth(physical_devices[0], True)
