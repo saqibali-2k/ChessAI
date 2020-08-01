@@ -19,7 +19,7 @@ def training_pipeline():
     model_num = 1
     best_model_num = 0
     best_model = CNNModel(best_model_num)
-    best_model.save_model()
+    best_model.save_weights()
     for _ in range(NUM_TRAINS):
         states, valids, improved_policy, win_loss = self_play(best_model_num)
 
@@ -33,7 +33,7 @@ def training_pipeline():
             best_model = contender
             best_model_num = contender.model_num
         logging.info(f'best model: {best_model_num}, new model won {contender_wins}')
-        best_model.save_model(best=True)
+        best_model.save_weights(best=True)
         model_num += 1
 
 
@@ -68,7 +68,7 @@ def async_episode(best_model_num) -> tuple:
     valids, states, improv_policy, win_loss = [], [], [], []
     best_model = CNNModel(best_model_num)
     logging.info("model initialised")
-    best_model.load_model()
+    best_model.load_weights()
     logging.debug("model loaded")
     board = chess.Board()
     logging.debug("chess board created")
@@ -78,7 +78,7 @@ def async_episode(best_model_num) -> tuple:
     while not board.is_game_over() and board.fullmove_number < 150:
         move = mcts.search()
         board.push(move)
-        logging.debug(str(move))
+        print(move)
     reward_white = {"1-0": 1,
                     "1/2-1/2": 0,
                     "*": -1,
@@ -119,9 +119,9 @@ def async_arena(iteration, best_model_num, new_model_num):
     new_model_wins = 0
     board = chess.Board()
     best_model = CNNModel(best_model_num)
-    best_model.load_model()
+    best_model.load_weights()
     new_model = CNNModel(new_model_num)
-    new_model.load_model()
+    new_model.load_weights()
     mcts_best = MonteCarloTS(chess.Board(), best_model)
     mcts_new = MonteCarloTS(chess.Board(), new_model)
     if iteration % 2 == 0:

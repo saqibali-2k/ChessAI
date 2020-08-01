@@ -1,4 +1,4 @@
-import tensorflow.keras as keras
+
 
 MODEL_PATH = "./models/v"
 
@@ -19,6 +19,7 @@ FEN_MAP = {"K": 6,
 class CNNModel:
 
     def __init__(self, model_num: int):
+        import tensorflow.keras as keras
         self.model_num = model_num
 
         inputs = keras.Input(shape=(5, 64))
@@ -40,16 +41,17 @@ class CNNModel:
                            )
 
     def load_model(self):
+        import tensorflow.keras as keras
         self.model = keras.models.load_model(MODEL_PATH + str(self.model_num))
 
     def load_weights(self):
-        self.model.load_weights(MODEL_PATH + str(self.model_num))
+        self.model.load_weights(MODEL_PATH + str(self.model_num) + '/v' + str(self.model_num))
 
     def save_weights(self, best=False):
         if best:
-            self.model.save_weights(MODEL_PATH + 'best.hdf5', save_format='h5')
+            self.model.save_weights(MODEL_PATH + 'best/vbest')
             return
-        self.model.save_weights(MODEL_PATH + str(self.model_num) + '.hdf5', save_format='h5')
+        self.model.save_weights(MODEL_PATH + str(self.model_num) + '/v' + str(self.model_num))
 
     def train_model(self, inputs, valids, wins_loss, improved_policies):
 
@@ -61,6 +63,7 @@ class CNNModel:
         self.save_weights()
 
     def _policy_head(self, inputs, valids):
+        import tensorflow.keras as keras
         x = self._conv_block(inputs, 2, 1)
         x = keras.layers.Flatten()(x)
         x = keras.layers.Dense(4096, kernel_initializer=keras.initializers.RandomNormal(stddev=0.01))(x)
@@ -69,6 +72,7 @@ class CNNModel:
         return x
 
     def _value_head(self, inputs):
+        import tensorflow.keras as keras
         x = self._conv_block(inputs, 1, 1)
         x = keras.layers.Flatten()(x)
         x = keras.layers.Dense(256, activation='relu', kernel_initializer=keras.initializers.RandomNormal(stddev=0.01))(x)
@@ -76,6 +80,7 @@ class CNNModel:
         return x
 
     def _conv_block(self, inputs, filters, kernel):
+        import tensorflow.keras as keras
         x = keras.layers.Conv2D(filters, (kernel, kernel), kernel_initializer=keras.initializers.RandomNormal(stddev=0.01))(inputs)
         x = keras.layers.BatchNormalization(axis=3)(x)
         x = keras.layers.Activation("relu")(x)
@@ -86,6 +91,7 @@ class CNNModel:
         return policy, value
 
     def save_model(self, best=False):
+        import tensorflow.keras as keras
         if best:
             keras.models.save_model(self.model, MODEL_PATH + "BEST")
             return
