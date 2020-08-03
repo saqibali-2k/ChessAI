@@ -35,7 +35,14 @@ class ValuePolicyNet(torch.nn.Module):
         self.fc_layer_value2 = torch.nn.Linear(256, 1)
 
     def forward(self, states: Union[torch.tensor, np.ndarray], valid_moves: Union[torch.tensor, np.ndarray]):
-        reshaped_states = torch.reshape(torch.tensor(states, dtype=torch.float32), (states.shape[0], 5, 8, 8))
+
+        if torch.cuda.is_available():
+            device = torch.device("cuda:0")
+        else:
+            device = torch.device("cpu")
+
+        reshaped_states = torch.reshape(torch.tensor(states, dtype=torch.float32, device=device),
+                                        (states.shape[0], 5, 8, 8))
 
         block1 = self.conv_layer_1(reshaped_states)
         block1 = self.batch_norm(block1)
@@ -59,10 +66,20 @@ class ValuePolicyNet(torch.nn.Module):
         value = self.tan_act(value)
 
         policy = self.fc_layer_policy(torch.reshape(block4, (block4.shape[0], -1)))
-        policy = policy * torch.tensor(valid_moves, dtype=torch.float32)
+        policy = policy * torch.tensor(valid_moves, dtype=torch.float32, device=device)
         policy = self.softmax_act(policy)
 
-        return value, policy
+        value_return = value.clone().cpu()
+        policy_return = policy.clone().cpu()
+
+        if torch.cuda.is_available():
+            del policy, value
+            del block1
+            del block2
+            del block3
+            del block4
+
+        return value_return, policy_return
 
 
 class CNNModel:
@@ -72,6 +89,11 @@ class CNNModel:
         self.model_num = model_num
 
         self.model = ValuePolicyNet()
+
+        if torch.cuda.is_available():
+            self.model.to(torch.device("cuda:0"))
+        else:
+            self.model.to(torch.device("cpu"))
 
     def load_model(self):
 
@@ -87,18 +109,24 @@ class CNNModel:
         torch.save(self.model.state_dict(), MODEL_PATH + str(self.model_num))
 
     def train_model(self, inputs: np.ndarray, valids: np.ndarray, wins_loss: np.ndarray, improved_policies: np.ndarray):
-        self.model.train()
 
-        optimizer = torch.optim.SGD(self.model.parameters(), lr=1e-6, momentum=0.9, weight_decay=1e-4)
+        if torch.cuda.is_available():
+            device = torch.device("cuda:0")
+        else:
+            device = torch.device("cpu")
+
+        optimizer = torch.optim.SGD(self.model.parameters(), lr=1e-2, momentum=0.9, weight_decay=1e-4)
+        wins_loss = torch.tensor(wins_loss, dtype=torch.float32, device=device)
+        improved_policies = torch.tensor(improved_policies, dtype=torch.float32, device=device)
 
         for i in range(135):
             value_pred, policy_pred = self.model(inputs, valids)
+
             # log(0) returns NAN, so set NAN to 0
-            log_policy = torch.tensor(improved_policies, dtype=torch.float32
-                                      ).mm(torch.log(policy_pred).transpose(0, 1)).sum()
+            log_policy = improved_policies.mm(torch.log(policy_pred.to(device)).transpose(0, 1)).sum()
             log_policy[log_policy != log_policy] = 0
 
-            loss = (value_pred - torch.tensor(wins_loss, dtype=torch.float32)).pow(2).sum() - log_policy
+            loss = (value_pred.to(device) - wins_loss).pow(2).sum() - log_policy
 
             if i % 50 == 0:
                 print(f'Iteration {i}, loss: {loss.item()}')
@@ -107,13 +135,16 @@ class CNNModel:
             loss.backward()
             optimizer.step()
 
+            del value_pred, policy_pred
+        del improved_policies, wins_loss
+
         self.save_weights()
         return loss.item()
 
     def evaluate(self, states, valids):
         self.model.eval()
         value, policy = self.model(torch.tensor(states, dtype=torch.float32), torch.tensor(valids, dtype=torch.float32))
-        return policy, value
+        return policy.detach(), value.detach()
 
     def save_model(self, best=False):
         if best:
