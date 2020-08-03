@@ -157,4 +157,6 @@ def async_arena(iteration, best_model_num, new_model_num):
 
 
 if __name__ == "__main__":
+    # To prevent unix leakages (prevents Error initialising CUDA)
+    mp.set_start_method('spawn')
     training_pipeline()

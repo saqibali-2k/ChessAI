@@ -115,7 +115,7 @@ class CNNModel:
         else:
             device = torch.device("cpu")
 
-        optimizer = torch.optim.SGD(self.model.parameters(), lr=1e-2, momentum=0.9, weight_decay=1e-4)
+        optimizer = torch.optim.SGD(self.model.parameters(), lr=1e-5, momentum=0.9, weight_decay=1e-4)
         wins_loss = torch.tensor(wins_loss, dtype=torch.float32, device=device)
         improved_policies = torch.tensor(improved_policies, dtype=torch.float32, device=device)
 
@@ -143,8 +143,9 @@ class CNNModel:
 
     def evaluate(self, states, valids):
         self.model.eval()
-        value, policy = self.model(torch.tensor(states, dtype=torch.float32), torch.tensor(valids, dtype=torch.float32))
-        return policy.detach(), value.detach()
+        with torch.no_grad():
+            value, policy = self.model(torch.tensor(states, dtype=torch.float32), torch.tensor(valids, dtype=torch.float32))
+            return policy, value
 
     def save_model(self, best=False):
         if best:
