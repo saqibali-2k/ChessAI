@@ -2,17 +2,17 @@ import chess
 from MonteCarloTS import MonteCarloTS
 from model import CNNModel
 import numpy as np
-import multiprocessing as mp
+import torch.multiprocessing as mp
 import logging
 
 logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filename='./debug.log',
-                    level=logging.DEBUG)
+                    level=logging.DEBUG, filemode='w')
 
-SELF_GAMES = 1
-NUM_TRAINS = 15
-BOT_GAMES = 10
+SELF_GAMES = 2
+NUM_TRAINS = 400
+BOT_GAMES = 20
 
-CPU_COUNT = max(mp.cpu_count() - 1, 1)
+CPU_COUNT = max(mp.cpu_count(), 1)
 
 
 def training_pipeline():
@@ -21,18 +21,23 @@ def training_pipeline():
     best_model = CNNModel(best_model_num)
     best_model.save_weights()
     for _ in range(NUM_TRAINS):
+        logging.info(f"Training iter {_}: self-play started")
         states, valids, improved_policy, win_loss = self_play(best_model_num)
 
         contender = CNNModel(model_num)
 
-        contender.train_model(np.array(states, np.uint32), np.array(valids, np.float32), np.array(win_loss),
-                              np.array(improved_policy))
+        logging.info(f"Training iter {_}: contender model training started")
+        loss = contender.train_model(np.array(states, np.float), np.array(valids, np.float), np.array(win_loss, np.float),
+                              np.array(improved_policy, np.float))
+        logging.info(f"Training iter {_}: loss: {loss}")
+
         contender_wins = bot_fight(best_model.model_num, contender.model_num)
 
         if contender_wins >= np.ceil(BOT_GAMES * 0.55):
             best_model = contender
             best_model_num = contender.model_num
-        logging.info(f'best model: {best_model_num}, new model won {contender_wins}')
+        logging.info(f'Training iter {_}: best model: {best_model_num}, new model won {contender_wins}')
+        print(f'Training iter {_}: best model: {best_model_num}, new model won {contender_wins}')
         best_model.save_weights(best=True)
         model_num += 1
 
@@ -57,34 +62,27 @@ def self_play(best_model_num):
 
 
 def async_episode(best_model_num) -> tuple:
-    logging.debug("episode process started")
-    import tensorflow as tf
-    import chess
-    from MonteCarloTS import MonteCarloTS
-    physical_devices = tf.config.list_physical_devices('GPU')
-    if len(physical_devices) != 0:
-        tf.config.experimental.set_memory_growth(physical_devices[0], True)
-    logging.debug("tensorflow input processed")
     valids, states, improv_policy, win_loss = [], [], [], []
-    best_model = CNNModel(best_model_num)
-    logging.info("model initialised")
-    best_model.load_weights()
-    logging.debug("model loaded")
-    board = chess.Board()
-    logging.debug("chess board created")
-    mcts = MonteCarloTS(board.copy(), best_model)
-    logging.debug("mcts tree created")
 
-    while not board.is_game_over() and board.fullmove_number < 150:
+    best_model = CNNModel(best_model_num)
+    best_model.load_weights()
+
+    board = chess.Board()
+    mcts = MonteCarloTS(board.copy(), best_model)
+
+    visited_nodes = []
+    while not board.is_game_over() and board.fullmove_number < 200:
+        visited_nodes.append(mcts.curr)
         move = mcts.search()
         board.push(move)
         print(move)
     reward_white = {"1-0": 1,
                     "1/2-1/2": 0,
-                    "*": -1,
+                    "*": 0,
                     "0-1": -1}
     logging.info(f'finished game with {board.result()}')
-    for node in mcts.visited:
+
+    for node in visited_nodes:
         policy = mcts.get_improved_policy(node, include_empty_spots=True)
         z = reward_white[board.result()]
         if node.state.board.turn == chess.BLACK:
@@ -107,14 +105,11 @@ def bot_fight(best_model_num, new_model_num) -> int:
 
     for result in result_objs:
         new_model_wins += result.get()
+
     return new_model_wins
 
 
 def async_arena(iteration, best_model_num, new_model_num):
-    import tensorflow as tf
-    physical_devices = tf.config.list_physical_devices('GPU')
-    if len(physical_devices) != 0:
-        tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
     new_model_wins = 0
     board = chess.Board()
@@ -130,7 +125,7 @@ def async_arena(iteration, best_model_num, new_model_num):
     else:
         turns = {"best": chess.BLACK,
                  "new": chess.WHITE}
-    while not board.is_game_over() and board.fullmove_number < 150 and not board.is_repetition(count=4):
+    while not board.is_game_over() and board.fullmove_number < 200 and not board.is_repetition(count=4):
         if turns["best"] == chess.WHITE:
             move = mcts_best.search(training=True)
             board.push(move)

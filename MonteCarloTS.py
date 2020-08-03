@@ -5,9 +5,9 @@ from model import CNNModel
 from typing import Union, Tuple, Optional
 from random import choices
 
-NUM_SIMULATIONS = 30
+NUM_SIMULATIONS = 50
 
-C_PUCT = np.sqrt(2)
+C_PUCT = 1.0
 LETTER_MAP = {"a": 0, "b": 1, "c": 2, "d": 3, "e": 4, "f": 5, "g": 6, "h": 7}
 NUMBER_MAP = {"1": 0, "2": 1, "3": 2, "4": 3, "5": 4, "6": 5, "7": 6, "8": 7}
 
@@ -139,5 +139,5 @@ class MonteCarloTS:
         policy, value = self.nnet.evaluate(np.array([curr.state.get_representation()]), np.array([valids]))
         # mask illegal moves and renormalize
 
-        return policy[0], value[0]
+        return policy[0], value.item()
 
