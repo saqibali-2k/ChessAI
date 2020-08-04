@@ -103,8 +103,8 @@ def bot_fight(i, best_model_num, new_model_num) -> int:
     new_model_wins = 0
     result_objs = []
     pool = mp.Pool(CPU_COUNT)
-    for i in range(BOT_GAMES):
-        result_objs += [pool.apply_async(async_arena, args=(i, best_model_num, new_model_num))]
+    for j in range(BOT_GAMES):
+        result_objs += [pool.apply_async(async_arena, args=(j, best_model_num, new_model_num))]
     pool.close()
 
     p_bar = tqdm(range(len(result_objs)), desc=f"Bot battle-{i}")
