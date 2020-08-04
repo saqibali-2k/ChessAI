@@ -166,7 +166,7 @@ class CNNModel:
                 value_pred = torch.flatten(value_pred)
 
                 # Calculate losses
-                policy_loss = -1 * policy_expected_batch.mm(policy_pred.to(device).transpose(0, 1)).sum()
+                policy_loss = -64 / 4096 * policy_expected_batch.mm(policy_pred.to(device).transpose(0, 1)).sum()
                 value_loss = (value_pred.to(device) - value_expected_batch).pow(2).sum()
 
                 loss = policy_loss + policy_loss
