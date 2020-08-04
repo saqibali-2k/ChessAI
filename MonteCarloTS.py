@@ -37,8 +37,8 @@ class MonteCarloTS:
             return best
         else:
             move_lst, prob = self.get_improved_policy(node)
-            best = choices(move_lst, weights=prob)
-            if len(best) != 0:
+            if len(move_lst) != 0:
+                best = choices(move_lst, weights=prob)
                 best = best[0]
             else:
                 best = None
@@ -51,7 +51,8 @@ class MonteCarloTS:
         best = self.get_best_action(self.curr, training=training)
         if best is not None:
             if best not in self.curr.children:
-                test = 1
+                # Unreachable code
+                raise RuntimeError
             self.curr = self.curr.children[best]
         return best
 

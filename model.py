@@ -69,17 +69,7 @@ class ValuePolicyNet(torch.nn.Module):
         policy = policy * torch.tensor(valid_moves, dtype=torch.float32, device=device)
         policy = self.softmax_act(policy)
 
-        value_return = value.clone().cpu()
-        policy_return = policy.clone().cpu()
-
-        if torch.cuda.is_available():
-            del policy, value
-            del block1
-            del block2
-            del block3
-            del block4
-
-        return value_return, policy_return
+        return value, policy
 
 
 class CNNModel:
@@ -124,7 +114,6 @@ class CNNModel:
 
             # log(0) returns NAN, so set NAN to 0
             log_policy = improved_policies.mm(torch.log(policy_pred.to(device)).transpose(0, 1)).sum()
-            log_policy[log_policy != log_policy] = 0
 
             loss = (value_pred.to(device) - wins_loss).pow(2).sum() - log_policy
 
@@ -135,8 +124,8 @@ class CNNModel:
             loss.backward()
             optimizer.step()
 
-            del value_pred, policy_pred
         del improved_policies, wins_loss
+        del value_pred, policy_pred
 
         self.save_weights()
         return loss.item()
@@ -144,11 +133,14 @@ class CNNModel:
     def evaluate(self, states, valids):
         self.model.eval()
         with torch.no_grad():
-            value, policy = self.model(torch.tensor(states, dtype=torch.float32), torch.tensor(valids, dtype=torch.float32))
-            return policy, value
+            value, policy = self.model(states, valids)
+            return policy.cpu(), value.cpu()
 
     def save_model(self, best=False):
         if best:
             torch.save(self.model, MODEL_PATH + "BEST")
             return
         torch.save(self.model, MODEL_PATH + str(self.model_num))
+
+    def delete_model(self):
+        del self.model
