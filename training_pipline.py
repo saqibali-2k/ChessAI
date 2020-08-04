@@ -2,6 +2,7 @@ import chess
 from MonteCarloTS import MonteCarloTS
 from model import CNNModel
 import numpy as np
+import concurrent.futures
 import torch.multiprocessing as mp
 import logging
 from tqdm import tqdm
@@ -9,8 +10,8 @@ from tqdm import tqdm
 logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filename='./debug.log',
                     level=logging.DEBUG, filemode='w')
 
-TURN_CUTOFF = 350
-SELF_GAMES = 32
+TURN_CUTOFF = 180
+SELF_GAMES = 28
 NUM_TRAINS = 400
 BOT_GAMES = 20
 
@@ -24,7 +25,7 @@ def training_pipeline():
     best_model.save_weights()
     for _ in range(NUM_TRAINS):
         logging.info(f"Training iter {_}: self-play started")
-        states, valids, improved_policy, win_loss = self_play(best_model_num)
+        states, valids, improved_policy, win_loss = self_play(_, best_model_num)
 
         contender = CNNModel(model_num)
 
@@ -33,7 +34,7 @@ def training_pipeline():
                              np.array(improved_policy, np.float))
 
         logging.info(f"Training iter {_}: contender model training finished")
-        contender_wins = bot_fight(best_model.model_num, contender.model_num)
+        contender_wins = bot_fight(_, best_model.model_num, contender.model_num)
 
         if contender_wins >= np.ceil(BOT_GAMES * 0.55):
             best_model = contender
@@ -44,7 +45,7 @@ def training_pipeline():
         model_num += 1
 
 
-def self_play(best_model_num):
+def self_play(i, best_model_num):
 
     states, valids, improv_policy, win_loss = [], [], [], []
 
@@ -52,7 +53,7 @@ def self_play(best_model_num):
     results_objs = [pool.apply_async(async_episode, args=(best_model_num,)) for _ in range(SELF_GAMES)]
     pool.close()
 
-    p_bar = tqdm(range(len(results_objs)), desc="Self-play")
+    p_bar = tqdm(range(len(results_objs)), desc=f"Self-play-{i}")
 
     for i in p_bar:
         result = results_objs[i]
@@ -85,7 +86,6 @@ def async_episode(best_model_num) -> tuple:
                     "*": 0,
                     "0-1": -1}
     logging.info(f'finished game with {board.result()}')
-    print(f'finished game with {board.result()}')
 
     for node in visited_nodes:
         policy = mcts.get_improved_policy(node, include_empty_spots=True)
@@ -99,7 +99,7 @@ def async_episode(best_model_num) -> tuple:
     return states, valids, improv_policy, win_loss
 
 
-def bot_fight(best_model_num, new_model_num) -> int:
+def bot_fight(i, best_model_num, new_model_num) -> int:
     new_model_wins = 0
     result_objs = []
     pool = mp.Pool(CPU_COUNT)
@@ -107,7 +107,7 @@ def bot_fight(best_model_num, new_model_num) -> int:
         result_objs += [pool.apply_async(async_arena, args=(i, best_model_num, new_model_num))]
     pool.close()
 
-    p_bar = tqdm(range(len(result_objs)), desc="Bot--battle")
+    p_bar = tqdm(range(len(result_objs)), desc=f"Bot battle-{i}")
 
     for i in p_bar:
         result = result_objs[i]
