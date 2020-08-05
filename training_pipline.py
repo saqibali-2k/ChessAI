@@ -2,7 +2,6 @@ import chess
 from MonteCarloTS import MonteCarloTS
 from model import CNNModel
 import numpy as np
-import concurrent.futures
 import torch.multiprocessing as mp
 import logging
 from tqdm import tqdm
@@ -11,7 +10,7 @@ logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S
                     level=logging.DEBUG, filemode='w')
 
 TURN_CUTOFF = 180
-SELF_GAMES = 28
+SELF_GAMES = 35
 NUM_TRAINS = 400
 BOT_GAMES = 20
 
@@ -34,9 +33,10 @@ def training_pipeline():
                              np.array(improved_policy, np.float))
 
         logging.info(f"Training iter {_}: contender model training finished")
-        contender_wins = bot_fight(_, best_model.model_num, contender.model_num)
+        contender_wins, best_wins = bot_fight(_, best_model.model_num, contender.model_num)
 
-        if contender_wins >= np.ceil(BOT_GAMES * 0.55):
+        win_ratio = contender_wins / max(best_wins, 1)
+        if win_ratio >= 4/3:
             best_model = contender
             best_model_num = contender.model_num
         logging.info(f'Training iter {_}: best model: {best_model_num}, new model won {contender_wins}')
@@ -99,8 +99,9 @@ def async_episode(best_model_num) -> tuple:
     return states, valids, improv_policy, win_loss
 
 
-def bot_fight(i, best_model_num, new_model_num) -> int:
+def bot_fight(i, best_model_num, new_model_num) -> tuple:
     new_model_wins = 0
+    best_model_wins = 0
     result_objs = []
     pool = mp.Pool(CPU_COUNT)
     for j in range(BOT_GAMES):
@@ -111,21 +112,27 @@ def bot_fight(i, best_model_num, new_model_num) -> int:
 
     for i in p_bar:
         result = result_objs[i]
-        new_model_wins += result.get()
+        result = result.get()
+        new_model_wins += result[0]
+        best_model_wins += result[1]
 
-    return new_model_wins
+    return new_model_wins, best_model_wins
 
 
 def async_arena(iteration, best_model_num, new_model_num):
 
     new_model_wins = 0
+    best_model_wins = 0
     board = chess.Board()
+
     best_model = CNNModel(best_model_num)
     best_model.load_weights()
     new_model = CNNModel(new_model_num)
     new_model.load_weights()
+
     mcts_best = MonteCarloTS(chess.Board(), best_model)
     mcts_new = MonteCarloTS(chess.Board(), new_model)
+
     if iteration % 2 == 0:
         turns = {"best": chess.WHITE,
                  "new": chess.BLACK}
@@ -154,13 +161,19 @@ def async_arena(iteration, best_model_num, new_model_num):
             board.push(move)
             mcts_new.enemy_move(move)
     s = board.result()
+
     if s == "1-0" and turns["new"] == chess.WHITE:
         new_model_wins += 1
     elif s == "0-1" and turns["new"] == chess.BLACK:
         new_model_wins += 1
+    elif s == "1-0" and turns["best"] == chess.WHITE:
+        best_model_wins += 1
+    elif s == "0-1" and turns["best"] == chess.BLACK:
+        best_model_wins += 1
+
     if new_model_wins == 1:
         logging.info("new_model won")
-    return new_model_wins
+    return new_model_wins, best_model_wins
 
 
 if __name__ == "__main__":
