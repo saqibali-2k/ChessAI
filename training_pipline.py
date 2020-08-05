@@ -36,6 +36,7 @@ def training_pipeline():
         states, valids, improved_policy, win_loss = self_play(_, best_model_num)
 
         contender = CNNModel(model_num)
+        contender.load_weights(path="models/vbest")
 
         logging.info(f"Training iter {_}: contender model training started")
         contender.train_model(np.array(states, np.float), np.array(valids, np.float), np.array(win_loss, np.float),
