@@ -35,7 +35,7 @@ class StatWrapper:
 
     def __repr__(self):
         avg = self.total / self.count
-        return f'{avg}'
+        return f'{avg: .2f}'
 
 
 class ValuePolicyNet(torch.nn.Module):
@@ -137,8 +137,11 @@ class CNNModel:
 
         self.model = torch.load(MODEL_PATH + str(self.model_num))
 
-    def load_weights(self):
-        torch.save(self.model.state_dict(), MODEL_PATH + str(self.model_num))
+    def load_weights(self, path: str=None):
+        if path is None:
+            torch.save(self.model.state_dict(), MODEL_PATH + str(self.model_num))
+        else:
+            torch.save(self.model.state_dict(), path)
 
     def save_weights(self, best=False):
         if best:
@@ -154,7 +157,7 @@ class CNNModel:
         else:
             device = torch.device("cpu")
 
-        optimizer = torch.optim.SGD(self.model.parameters(), lr=1e-5, momentum=0.9, weight_decay=1e-4)
+        optimizer = torch.optim.Adam(self.model.parameters(), weight_decay=1e-4)
 
         for i in range(EPOCHS):
 

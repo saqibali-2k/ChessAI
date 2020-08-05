@@ -10,7 +10,7 @@ logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S
                     level=logging.DEBUG, filemode='w')
 
 TURN_CUTOFF = 180
-SELF_GAMES = 35
+SELF_GAMES = 80
 NUM_TRAINS = 400
 BOT_GAMES = 20
 
@@ -18,10 +18,19 @@ CPU_COUNT = max(mp.cpu_count() - 1, 1)
 
 
 def training_pipeline():
+    while True:
+        mode = input("mode?")
+        if mode == "continue" or mode == "new":
+            break
+        print("Not recognized")
     model_num = 1
     best_model_num = 0
     best_model = CNNModel(best_model_num)
+
+    if mode == "continue":
+        best_model.load_weights(path="models/vbest")
     best_model.save_weights()
+
     for _ in range(NUM_TRAINS):
         logging.info(f"Training iter {_}: self-play started")
         states, valids, improved_policy, win_loss = self_play(_, best_model_num)
