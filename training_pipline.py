@@ -37,14 +37,15 @@ def training_pipeline():
 
     for _ in range(NUM_TRAINS):
         logging.info(f"Training iter {_}: self-play started")
-        states, valids, improved_policy, win_loss = self_play(_, best_model_num)
+        # states, valids, improved_policy, win_loss = self_play(_, best_model_num)
 
         contender = CNNModel(model_num)
         contender.load_weights(path="models/vbest")
+        contender.save_weights()
 
         logging.info(f"Training iter {_}: contender model training started")
-        contender.train_model(np.array(states, np.float), np.array(valids, np.float), np.array(win_loss, np.float),
-                             np.array(improved_policy, np.float))
+        # contender.train_model(np.array(states, np.float), np.array(valids, np.float), np.array(win_loss, np.float),
+        #                      np.array(improved_policy, np.float))
 
         logging.info(f"Training iter {_}: contender model training finished")
         contender_wins, best_wins = bot_fight(_, best_model.model_num, contender.model_num)
