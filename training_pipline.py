@@ -10,8 +10,8 @@ logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S
                     level=logging.DEBUG, filemode='w')
 
 TURN_CUTOFF = 180
-SELF_GAMES = 80
-NUM_TRAINS = 400
+SELF_GAMES = 3
+NUM_TRAINS = 2
 BOT_GAMES = 20
 
 CPU_COUNT = max(mp.cpu_count() - 1, 1)
@@ -19,7 +19,7 @@ CPU_COUNT = max(mp.cpu_count() - 1, 1)
 
 def training_pipeline():
     while True:
-        mode = input("mode?")
+        mode = input("mode? (new/continue)")
         if mode == "continue" or mode == "new":
             break
         print("Not recognized")
@@ -28,8 +28,12 @@ def training_pipeline():
     best_model = CNNModel(best_model_num)
 
     if mode == "continue":
-        best_model.load_weights(path="models/vbest")
+        try:
+            best_model.load_weights(path="models/vbest")
+        except FileNotFoundError:
+            print("file not found, mode is new")
     best_model.save_weights()
+    best_model.save_weights(best=True)
 
     for _ in range(NUM_TRAINS):
         logging.info(f"Training iter {_}: self-play started")
@@ -90,6 +94,7 @@ def async_episode(best_model_num) -> tuple:
         visited_nodes.append(mcts.curr)
         move = mcts.search()
         board.push(move)
+
 
     reward_white = {"1-0": 1,
                     "1/2-1/2": 0,

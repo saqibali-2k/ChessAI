@@ -39,24 +39,36 @@ class StatWrapper:
 
 
 class ValuePolicyNet(torch.nn.Module):
-    def __init__(self):
+    def __init__(self, num_res_blocks: int=3):
         super(ValuePolicyNet, self).__init__()
         self.conv_layer_1 = torch.nn.Conv2d(5, 256, 3, padding=1)  # input size (5, 8, 8)
         self.batch_norm1 = torch.nn.BatchNorm2d(256)
-        self.batch_norm2 = torch.nn.BatchNorm2d(256)
-        self.batch_norm3 = torch.nn.BatchNorm2d(256)
-        self.batch_norm4 = torch.nn.BatchNorm2d(256)
-        self.batch_norm5 = torch.nn.BatchNorm2d(256)
-        self.batch_norm6 = torch.nn.BatchNorm2d(256)
-        self.batch_norm7 = torch.nn.BatchNorm2d(256)
+        self._num_res_blocks = num_res_blocks
+        res_blocks = []
+        for _ in range(num_res_blocks):
+            res_blocks += [torch.nn.Conv2d(256, 256, 3, padding=1)]
+            res_blocks += [torch.nn.BatchNorm2d(256)]
+            res_blocks += [torch.nn.Conv2d(256, 256, 3, padding=1)]
+            res_blocks += [torch.nn.BatchNorm2d(256)]
+            # input: (256, 8 , 8), output: (256, 8, 8)
+
+        self.res_blocks = torch.nn.ModuleList(res_blocks)
+
+
+        # self.batch_norm2 = torch.nn.BatchNorm2d(256)
+        # self.batch_norm3 = torch.nn.BatchNorm2d(256)
+        # self.batch_norm4 = torch.nn.BatchNorm2d(256)
+        # self.batch_norm5 = torch.nn.BatchNorm2d(256)
+        # self.batch_norm6 = torch.nn.BatchNorm2d(256)
+        # self.batch_norm7 = torch.nn.BatchNorm2d(256)
         self.relu_activation = torch.nn.functional.relu
-        self.conv_layer_2 = torch.nn.Conv2d(256, 256, 3, padding=1)  # input size (256, 8, 8)
-        self.conv_layer_3 = torch.nn.Conv2d(256, 256, 3, padding=1)  # input (256, 8 , 8), output:(256, 8, 8)
-        self.conv_layer_4 = torch.nn.Conv2d(256, 256, 3, padding=1)  # input (256, 8 , 8), output:(256, 8, 8)
-        self.conv_layer_5 = torch.nn.Conv2d(256, 256, 3, padding=1)  # input (256, 8 , 8), output:(256, 8, 8)
-        self.conv_layer_6 = torch.nn.Conv2d(256, 256, 3, padding=1)  # input size (256, 8, 8), output: (256, 8, 8)
-        self.conv_layer_7 = torch.nn.Conv2d(256, 256, 3, padding=1)  # input size (256, 8, 8), output: (256, 8, 8)
-        self.conv_layer_reduc = torch.nn.Conv2d(256, 2, 1)  # input (256, 8, 8), output: (1, 1, 2)
+        # self.conv_layer_2 = torch.nn.Conv2d(256, 256, 3, padding=1)  # input size (256, 8, 8)
+        # self.conv_layer_3 = torch.nn.Conv2d(256, 256, 3, padding=1)
+        # self.conv_layer_4 = torch.nn.Conv2d(256, 256, 3, padding=1)  # input (256, 8 , 8), output:(256, 8, 8)
+        # self.conv_layer_5 = torch.nn.Conv2d(256, 256, 3, padding=1)  # input (256, 8 , 8), output:(256, 8, 8)
+        # self.conv_layer_6 = torch.nn.Conv2d(256, 256, 3, padding=1)  # input size (256, 8, 8), output: (256, 8, 8)
+        # self.conv_layer_7 = torch.nn.Conv2d(256, 256, 3, padding=1)  # input size (256, 8, 8), output: (256, 8, 8)
+        # self.conv_layer_reduc = torch.nn.Conv2d(256, 2, 1)  # input (256, 8, 8), output: (1, 1, 2)
 
         # Reduces features too much, might be good for ResNet though
 
@@ -79,41 +91,25 @@ class ValuePolicyNet(torch.nn.Module):
         block1 = self.batch_norm1(block1)
         block1 = self.relu_activation(block1)
 
-        block2 = self.conv_layer_2(block1)
-        block2 = self.batch_norm2(block2)
-        block2 = self.relu_activation(block2)
+        res_in = block1
+        for i in range(self._num_res_blocks):
+            res_out = self.res_blocks[i * 4 + 0](res_in)  # Conv
+            res_out = self.res_blocks[i * 4 + 1](res_out)  # BatchNorm
+            res_out = self.relu_activation(res_out)
 
-        block3 = self.conv_layer_3(block2)
-        block3 = self.batch_norm3(block3)
-        block3 = torch.add(block3, block1)
-        block3 = self.relu_activation(block3)
+            res_out = self.res_blocks[i * 4 + 2](res_out)  # Conv
+            res_out = self.res_blocks[i * 4 + 3](res_out)  # BatchNorm
+            res_out = torch.add(res_out, res_in)
+            res_out = self.relu_activation(res_out)
+            res_in = res_out
+        res_out = res_in
 
-        block4 = self.conv_layer_4(block3)
-        block4 = self.batch_norm4(block4)
-        # block4 = torch.add(block4, block2)
-        block4 = self.relu_activation(block4)
-
-        block5 = self.conv_layer_5(block4)
-        block5 = self.batch_norm5(block5)
-        block5 = torch.add(block5, block3)
-        block5 = self.relu_activation(block5)
-
-        block6 = self.conv_layer_6(block5)
-        block6 = self.batch_norm6(block6)
-        # block6 = torch.add(block6, block4)
-        block6 = self.relu_activation(block6)
-
-        block7 = self.conv_layer_7(block6)
-        block7 = self.batch_norm7(block7)
-        block7 = torch.add(block7, block5)
-        block7 = self.relu_activation(block7)
-
-        value = self.fc_layer_value1(torch.reshape(block7, (block7.shape[0], -1)))
+        value = self.fc_layer_value1(torch.reshape(res_out, (res_out.shape[0], -1)))
         value = self.relu_activation(value)
         value = self.fc_layer_value2(value)
         value = torch.tanh(value)
 
-        policy = self.fc_layer_policy(torch.reshape(block7, (block7.shape[0], -1)))
+        policy = self.fc_layer_policy(torch.reshape(res_out, (res_out.shape[0], -1)))
         policy = policy * torch.tensor(valid_moves, dtype=torch.float32, device=device)
         policy = torch.nn.functional.log_softmax(policy, dim=1)
 
@@ -126,7 +122,7 @@ class CNNModel:
 
         self.model_num = model_num
 
-        self.model = ValuePolicyNet()
+        self.model = ValuePolicyNet(10)
 
         if torch.cuda.is_available():
             self.model.to(torch.device("cuda:0"))
@@ -139,9 +135,9 @@ class CNNModel:
 
     def load_weights(self, path: str=None):
         if path is None:
-            torch.save(self.model.state_dict(), MODEL_PATH + str(self.model_num))
+            self.model.load_state_dict(torch.load(MODEL_PATH + str(self.model_num)))
         else:
-            torch.save(self.model.state_dict(), path)
+            self.model.load_state_dict(torch.load(path))
 
     def save_weights(self, best=False):
         if best:
