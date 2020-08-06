@@ -10,8 +10,8 @@ logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S
                     level=logging.DEBUG, filemode='w')
 
 TURN_CUTOFF = 180
-SELF_GAMES = 3
-NUM_TRAINS = 2
+SELF_GAMES = 80
+NUM_TRAINS = 100
 BOT_GAMES = 20
 
 CPU_COUNT = max(mp.cpu_count() - 1, 1)

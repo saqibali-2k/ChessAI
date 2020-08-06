@@ -5,7 +5,7 @@ from model import CNNModel
 from typing import Union, Tuple, Optional
 from random import choices
 
-NUM_SIMULATIONS = 25
+NUM_SIMULATIONS = 30
 
 C_PUCT = 1.0
 LETTER_MAP = {"a": 0, "b": 1, "c": 2, "d": 3, "e": 4, "f": 5, "g": 6, "h": 7}
