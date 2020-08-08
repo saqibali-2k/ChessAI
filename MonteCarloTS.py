@@ -83,12 +83,12 @@ class MonteCarloTS:
             for action in curr.state.get_actions():
                 if action in curr.children:
                     node = curr.children[action]
-                    u = node.get_Q() + C_PUCT * curr.state.get_policy(action) * (np.sqrt(sum_visits) / (1 + node.N_num_visits))
+                    u = node.get_Q() + C_PUCT * self.get_policy(curr, action) * (np.sqrt(sum_visits) / (1 + node.N_num_visits))
                 else:
                     # initialize any non explored nodes at this point (with W = 0 and N = 0)
                     # But don't add them to visited nodes
 
-                    u = C_PUCT * curr.state.get_policy(action) * np.sqrt(sum_visits + 1e-8)  # to encourage exploring
+                    u = C_PUCT * self.get_policy(curr, action) * np.sqrt(sum_visits + 1e-8)  # to encourage exploring
 
                 if u > max_u:
                     max_u = u
