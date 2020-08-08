@@ -35,12 +35,6 @@ class TreeNode:
         """
         return self.W_state_val / max(self.N_num_visits, 1)
 
-    def __hash__(self):
-        return self.state.__hash__()
-
-    def __eq__(self, other: TreeNode):
-        return self.state.__eq__(other.state)
-
 
 class State:
     def __init__(self, board: Board):
